@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agentic RAG</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%232350D8'/%3E%3Crect x='7' y='17' width='4' height='8' fill='%23fff'/%3E%3Crect x='14' y='11' width='4' height='14' fill='%23fff'/%3E%3Crect x='21' y='7' width='4' height='18' fill='%23FFE066'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/app.css?v=2.0.1">
+</head>
+<body>
+  <a class="skip" href="#question">Skip to the question box</a>
+  <div class="app">
+    <aside class="rail" aria-label="Workspace">
+      <div class="brand">
+        <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="6"/><rect class="bar" x="7" y="17" width="4" height="8"/><rect class="bar" x="14" y="11" width="4" height="14"/><rect class="hi" x="21" y="7" width="4" height="18"/></svg>
+        <div>
+          <p class="brand-name">Agentic RAG</p>
+          <p class="brand-sub">Ask your tables. Check the evidence.</p>
+        </div>
+        <button class="btn ghost small menu-toggle" id="menu-toggle" aria-expanded="false">Datasets and model</button>
+      </div>
+
+      <nav class="views" aria-label="Views">
+        <button class="view-btn" data-view="ask" aria-current="page">Ask</button>
+        <button class="view-btn" data-view="data">Data</button>
+        <button class="view-btn" data-view="knowledge">Knowledge <span class="count" id="count-docs"></span></button>
+        <button class="view-btn" data-view="memory">Memory <span class="count" id="count-mem"></span></button>
+      </nav>
+
+      <section class="rail-section">
+        <h2 class="rail-title">Datasets</h2>
+        <ul class="dataset-list" id="dataset-list"></ul>
+        <label class="link-btn">
+          <input type="file" id="dataset-file" accept=".csv,.tsv,.txt,.xlsx,.xls,.xlsm" hidden>Add a CSV or Excel file
+        </label>
+      </section>
+
+      <section class="rail-section model" aria-labelledby="model-title">
+        <h2 class="rail-title" id="model-title">Model</h2>
+        <button class="model-chip" id="model-chip" aria-expanded="false" aria-controls="model-panel"></button>
+        <form class="model-panel" id="model-panel" hidden>
+          <label>Provider
+            <select id="provider-select"></select>
+          </label>
+          <label>Model name
+            <input id="model-input" type="text" autocomplete="off" spellcheck="false">
+          </label>
+          <label id="key-row">API key
+            <input id="key-input" type="password" autocomplete="off" placeholder="Paste a key for this provider">
+          </label>
+          <p class="hint" id="key-hint"></p>
+          <label class="check"><input type="checkbox" id="memory-toggle" checked> Use memory</label>
+          <button class="btn primary" type="submit">Save model settings</button>
+        </form>
+        <p class="hint" id="embed-hint"></p>
+      </section>
+    </aside>
+
+    <main class="stage" id="main">
+      <section class="view" id="view-ask" aria-label="Ask">
+        <header class="stage-head">
+          <div>
+            <h1 id="ask-title">Ask about your data</h1>
+            <p class="schema-line" id="schema-line"></p>
+          </div>
+          <button class="btn ghost" id="new-chat">New conversation</button>
+        </header>
+        <div class="notebook" id="thread" aria-live="polite">
+          <div class="empty" id="empty">
+            <h2>Ask your first question</h2>
+            <p>Every number is computed with pandas on the full table. Business terms are looked up in your knowledge base and cited, so you can check each claim.</p>
+            <div class="suggestions" id="suggestions"></div>
+          </div>
+        </div>
+        <form class="ask-bar" id="ask-form">
+          <label for="question" class="sr-only">Your question</label>
+          <textarea id="question" rows="1" placeholder="Ask a question about this table" required></textarea>
+          <button class="btn primary" id="ask-btn" type="submit">Ask</button>
+        </form>
+      </section>
+
+      <section class="view" id="view-data" hidden aria-label="Data">
+        <header class="stage-head"><div><h1 id="data-title">Data</h1><p class="schema-line" id="data-sub"></p></div></header>
+        <div class="columns-grid" id="columns-grid"></div>
+        <h2 class="section-title">First rows</h2>
+        <div class="table-wrap" id="preview-table"></div>
+      </section>
+
+      <section class="view" id="view-knowledge" hidden aria-label="Knowledge">
+        <header class="stage-head">
+          <div><h1>Knowledge</h1><p class="schema-line">Documents the agent searches before it answers: glossaries, metric definitions, data dictionaries.</p></div>
+          <label class="btn primary">
+            <input type="file" id="doc-file" accept=".md,.markdown,.txt,.pdf,.csv,.json" hidden>Upload a document
+          </label>
+        </header>
+        <form class="probe" id="probe-form">
+          <label for="probe-input">Test retrieval</label>
+          <div class="probe-row">
+            <input id="probe-input" type="search" placeholder="Type a question to see which passages come back">
+            <button class="btn" type="submit">Search</button>
+          </div>
+        </form>
+        <div id="probe-results"></div>
+        <h2 class="section-title">Documents</h2>
+        <ul class="doc-list" id="doc-list"></ul>
+      </section>
+
+      <section class="view" id="view-memory" hidden aria-label="Memory">
+        <header class="stage-head">
+          <div><h1>Memory</h1><p class="schema-line">Facts you've taught the agent. They're matched by meaning, so "live accounts" can find "active customers".</p></div>
+          <div class="head-actions">
+            <a class="btn ghost" href="/api/memory-export" download>Export</a>
+            <button class="btn ghost danger" id="clear-mem">Clear all</button>
+          </div>
+        </header>
+        <form class="mem-add" id="mem-form">
+          <label>Kind<select id="mem-kind"></select></label>
+          <label>Name<input id="mem-key" required placeholder="e.g. churned customer"></label>
+          <label class="grow">What it means<input id="mem-content" required placeholder="e.g. a customer whose status is cancelled"></label>
+          <button class="btn primary" type="submit">Remember</button>
+        </form>
+        <ul class="mem-list" id="mem-list"></ul>
+      </section>
+    </main>
+
+    <aside class="evidence" id="evidence" aria-label="Evidence">
+      <header class="ev-head">
+        <h2 id="ev-title">Evidence</h2>
+        <button class="btn ghost small" id="ev-close">Close</button>
+      </header>
+      <div id="ev-body">
+        <p class="ev-empty">The sources, memories and tool steps behind an answer show up here.</p>
+      </div>
+    </aside>
+  </div>
+  <div class="toast" id="toast" role="status" hidden></div>
+  <script src="/static/app.js?v=2.0.1"></script>
+</body>
+</html>

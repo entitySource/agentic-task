@@ -1,0 +1,8 @@
+[project]
+name = "agentic-rag"
+version = "2.0.0"
+description = "A data-analysis agent built on LangChain, with retrieval over a knowledge base and an embedding-searchable memory."
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
